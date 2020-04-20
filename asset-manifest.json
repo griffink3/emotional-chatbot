@@ -1,0 +1,23 @@
+{
+  "files": {
+    "main.css": "/emotional-chatbot/static/css/main.d1b05096.chunk.css",
+    "main.js": "/emotional-chatbot/static/js/main.5cf45238.chunk.js",
+    "main.js.map": "/emotional-chatbot/static/js/main.5cf45238.chunk.js.map",
+    "runtime-main.js": "/emotional-chatbot/static/js/runtime-main.a55fa3cb.js",
+    "runtime-main.js.map": "/emotional-chatbot/static/js/runtime-main.a55fa3cb.js.map",
+    "static/js/2.d6651b8c.chunk.js": "/emotional-chatbot/static/js/2.d6651b8c.chunk.js",
+    "static/js/2.d6651b8c.chunk.js.map": "/emotional-chatbot/static/js/2.d6651b8c.chunk.js.map",
+    "index.html": "/emotional-chatbot/index.html",
+    "precache-manifest.513b90a9a8b96d366f5e0e63c90ab381.js": "/emotional-chatbot/precache-manifest.513b90a9a8b96d366f5e0e63c90ab381.js",
+    "service-worker.js": "/emotional-chatbot/service-worker.js",
+    "static/css/main.d1b05096.chunk.css.map": "/emotional-chatbot/static/css/main.d1b05096.chunk.css.map",
+    "static/js/2.d6651b8c.chunk.js.LICENSE.txt": "/emotional-chatbot/static/js/2.d6651b8c.chunk.js.LICENSE.txt",
+    "static/media/logo.svg": "/emotional-chatbot/static/media/logo.5d5d9eef.svg"
+  },
+  "entrypoints": [
+    "static/js/runtime-main.a55fa3cb.js",
+    "static/js/2.d6651b8c.chunk.js",
+    "static/css/main.d1b05096.chunk.css",
+    "static/js/main.5cf45238.chunk.js"
+  ]
+}
