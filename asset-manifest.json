@@ -1,14 +1,14 @@
 {
   "files": {
     "main.css": "/emotional-chatbot/static/css/main.bfa9a76a.chunk.css",
-    "main.js": "/emotional-chatbot/static/js/main.2251f945.chunk.js",
-    "main.js.map": "/emotional-chatbot/static/js/main.2251f945.chunk.js.map",
+    "main.js": "/emotional-chatbot/static/js/main.e032891c.chunk.js",
+    "main.js.map": "/emotional-chatbot/static/js/main.e032891c.chunk.js.map",
     "runtime-main.js": "/emotional-chatbot/static/js/runtime-main.a55fa3cb.js",
     "runtime-main.js.map": "/emotional-chatbot/static/js/runtime-main.a55fa3cb.js.map",
     "static/js/2.c31c9eb6.chunk.js": "/emotional-chatbot/static/js/2.c31c9eb6.chunk.js",
     "static/js/2.c31c9eb6.chunk.js.map": "/emotional-chatbot/static/js/2.c31c9eb6.chunk.js.map",
     "index.html": "/emotional-chatbot/index.html",
-    "precache-manifest.9e568976686b7dc1ff9d7345a9d377c2.js": "/emotional-chatbot/precache-manifest.9e568976686b7dc1ff9d7345a9d377c2.js",
+    "precache-manifest.72a200c725d934470a900eb4d5816d23.js": "/emotional-chatbot/precache-manifest.72a200c725d934470a900eb4d5816d23.js",
     "service-worker.js": "/emotional-chatbot/service-worker.js",
     "static/css/main.bfa9a76a.chunk.css.map": "/emotional-chatbot/static/css/main.bfa9a76a.chunk.css.map",
     "static/js/2.c31c9eb6.chunk.js.LICENSE.txt": "/emotional-chatbot/static/js/2.c31c9eb6.chunk.js.LICENSE.txt"
@@ -17,6 +17,6 @@
     "static/js/runtime-main.a55fa3cb.js",
     "static/js/2.c31c9eb6.chunk.js",
     "static/css/main.bfa9a76a.chunk.css",
-    "static/js/main.2251f945.chunk.js"
+    "static/js/main.e032891c.chunk.js"
   ]
 }
