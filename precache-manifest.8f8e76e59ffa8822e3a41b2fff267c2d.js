@@ -1,10 +1,10 @@
 self.__precacheManifest = (self.__precacheManifest || []).concat([
   {
-    "revision": "04de2fba5721743866279fd1b6938cbd",
+    "revision": "ae0754ccfac11ce43260587a9e90b823",
     "url": "/emotional-chatbot/index.html"
   },
   {
-    "revision": "5764ccc934229645e232",
+    "revision": "2b034dd0cd2f1e8cd474",
     "url": "/emotional-chatbot/static/css/main.6195edb2.chunk.css"
   },
   {
@@ -16,8 +16,8 @@ self.__precacheManifest = (self.__precacheManifest || []).concat([
     "url": "/emotional-chatbot/static/js/2.8c751457.chunk.js.LICENSE.txt"
   },
   {
-    "revision": "5764ccc934229645e232",
-    "url": "/emotional-chatbot/static/js/main.9e10cf92.chunk.js"
+    "revision": "2b034dd0cd2f1e8cd474",
+    "url": "/emotional-chatbot/static/js/main.3fa4ce27.chunk.js"
   },
   {
     "revision": "2b4f6925be905d386955",
