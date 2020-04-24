@@ -1,25 +1,24 @@
 from comet_ml import Experiment
 import torch
-from torch import nn, optim
-from torch.autograd import Variable
-from torch.nn import functional as F
+import torch.nn as nn
 import argparse
 import math
 import numpy as np
 from preprocess import *
 from tqdm import tqdm
+from transformers import *
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 hyper_params = {
-     "batch_size": 50,
-     "num_epochs": 4,
-     "learning_rate": 0.001,
-     "window_size": 15,
+     "batch_size": 25,
+     "num_epochs": 2,
+     "learning_rate": 1E-4,
+     "window_size": 20
  }
 
 
-def train(model, train_loader, optimizer, loss_fn, experiment):
+def train(model, train_loader, optimizer, experiment, loss_fn):
     """
     Trains the model.
     :param model: the initilized model to use for forward and backward pass
@@ -28,44 +27,35 @@ def train(model, train_loader, optimizer, loss_fn, experiment):
     :param experiment: comet.ml experiment object
     """
     # TODO: Write the training loop here, save trained model weights if needed
-    model = model.train()
+    model = model.train()    
     with experiment.train():
-        for e in range(hyper_params['num_epochs']):
-            correct = 0
-            total = 0
-            total_loss = 0
-            for item in tqdm(train_loader):
-                    x = item['input']
-                    y = item['label']
-                    seq = x.to(device)
-                    if len(seq[0]) == 1:
-                        continue
-                    labels = y.to(device)
-                    mask = item['mask']
-                    mask = mask.to(device)
-                    optimizer.zero_grad()
+        for epoch in range(hyper_params['num_epochs']):
+            num_correct = 0
+            num_words = 0
+            for i, items in enumerate(tqdm(train_loader)):
+                x = items['x'].to(device)
+                y = items['y'].to(device).view(-1)
+                mask = items['mask'].to(device)
 
-                    loss, output = model(seq, attention_mask=mask, labels=seq)[:2]
-                    labels = labels.view(-1)
-                    output = output.view(-1, output.shape[2])
-                    #loss = loss_fn(output, labels)
-                    loss.backward()
-                    optimizer.step()
+                optimizer.zero_grad()
+                y_pred = model(x, attention_mask=mask)[0]
+                y_pred = y_pred.view(-1, y_pred.shape[2])
+                loss = loss_fn(y_pred, y)
+                loss.backward()
+                optimizer.step()
 
-                    _, predicted = torch.max(output.data, 1)
+                num_words += y.size(0) 
+                _, predictions = torch.max(y_pred.data, 1)
+                num_correct += (predictions == y.data).sum()
 
-                    #print(predicted) 
-                    total += labels.size(0)
-                    total_loss += loss.item()*labels.size()[0]
-                    correct += (predicted == labels.data).sum().float()
-
-            print('epoch:', e+1)
-            print('accuracy', correct/total)
-            print('loss:', loss)
-            print('perplexity:', total_loss/total)
+                # Log accuracy/loss to Comet.ml using experiment.log_metric
+                accuracy = (1.0 * num_correct / num_words).cpu().numpy()
+                experiment.log_metric("accuracy", accuracy, step=i)
+                experiment.log_metric("loss", loss.item(), step=i)
+  
 
 
-def test(model, test_loader, experiment):
+def test(model, test_loader, experiment, loss_fn):
     """
     Validates the model performance as LM on never-seen data using perplexity.
     :param model: the trained model to use for testing
@@ -75,42 +65,31 @@ def test(model, test_loader, experiment):
     # TODO: Write the testing loop and calculate perplexity
     model = model.eval()
     with experiment.validate():
-
         total_loss = 0
-        word_count = 0
-        correct = 0
+        num_words = 0
+        for i, items in enumerate(tqdm(test_loader)):
+            x = items['x'].to(device)
+            y = items['y'].to(device).view(-1)
+            mask = items['mask'].to(device)
 
-        with torch.no_grad():
-            model = model.eval()
-            with experiment.test():
-                for item in tqdm(test_loader):
-                    x = item['input']
-                    seq = x.to(device)
-                    if len(seq[0]) == 1:
-                        continue
-                    y = item['label']
-                    mask = item['mask']
-                    labels = y.to(device)
-                    mask = mask.to(device)
+            y_pred = model(x, attention_mask=mask)[0]
+            y_pred = y_pred.view(-1, y_pred.shape[2])
+            loss = loss_fn(y_pred, y)
 
-                    loss = model(seq, labels=seq, attention_mask=mask)[0]
-                    labels = labels.view(-1)
-                    total_loss += loss.item()*labels.size()[0]
-                    word_count += labels.size()[0]
+            num_words += y.size(0) 
+            total_loss += loss.item()*y.size()[0]
+        
+        perplexity = math.exp(total_loss / num_words)
+        print("perplexity: ", perplexity)
+        experiment.log_metric("perplexity", perplexity) 
 
-                    # _, predicted = torch.max(y_pred.data, 1)
-                    # correct += (predicted == labels.data).sum().float()
-                    torch.cuda.empty_cache()
+def is_special_token(tokenizer, token_id):
+    for special_id in tokenizer.all_special_ids:
+        if special_id == token_id:
+            return True
+    return False
 
-            perplexity = math.exp(total_loss/word_count)
-            # accuracy = (correct/word_count).item()
-
-            print("perplexity:", perplexity)
-            experiment.log_metric("perplexity", perplexity)
-
-
-
-def interactive(input, tokenizer, model, top_k=8, ntok=20):
+def interactive(input, tokenizer, model, top_k=5, ntok=15):
     """
     Generate and print out the response given input using the trained model
     :param input: an input string as prompt (i.e. How are you?)
@@ -119,8 +98,8 @@ def interactive(input, tokenizer, model, top_k=8, ntok=20):
     :param top_k: number of samples for top_l sampling
     :param ntok: maximum number of tokens to generate
 
-    Comment: Feed in the input to the model to generate the most probable
-    token and concatenate it with current input.
+    Comment: Feed in the input to the model to generate the most probable token
+    and concatenate it with current input.
     Continue this process iteratively until the model predicts the padding
     token or reach the maximum number of tokens.
     You may need to add the BOS token and special token to the input sentence
@@ -129,37 +108,35 @@ def interactive(input, tokenizer, model, top_k=8, ntok=20):
     when printing out the response.
     """
     # TODO: Write the generation function for interacting with trained model
+    line = tokenizer.bos_token + ' ' + input + ' ' + tokenizer.sep_token
+    tokenized_input = torch.tensor(tokenizer.encode(line, add_special_tokens=True, return_tensor=True)).to(device)
+    response = ''
+    model = model.eval()
+    with torch.no_grad():
+        num_response_words = 0
+        while num_response_words < ntok:
+            output = model(tokenized_input)[0] # window_sz x vocab_sz
+            _, vocab_indices = torch.topk(output[-1,:], top_k)
+            perm = torch.randperm(top_k)
+            perm_i = 0
+            top_index = vocab_indices[perm[perm_i]]
+            while is_special_token(tokenizer, top_index):
+                if top_index == tokenizer.pad_token_id:
+                    break
+                perm_i += 1
+                top_index = perm[perm_i]
+            chosen_word = tokenizer.decode(torch.tensor([top_index]), skip_special_tokens=True)
+            response += chosen_word + ' '
+            tokenized_input = torch.cat((tokenized_input, torch.tensor([top_index]).to(device)))
 
-    prompt = input
-    prompt = '<b> ' + prompt + ' <s>'
-    enc = torch.tensor(tokenizer.encode(prompt, add_special_tokens=True)).cuda()
-    response = []
+            num_response_words += 1
 
-    while len(response) < ntok:
-        with torch.no_grad():
-            logits = model(enc)[0]
-            #logits = logits.view(-1, logits.shape[1])
-            topk, inds = torch.topk(logits, k=top_k)
-            new_logits = Variable(torch.zeros(logits.size(0), logits.size(1))).cuda()
-            logits = new_logits.scatter(1, inds, topk)
-
-            #probs = F.softmax(logits[-1], dim=-1)
-            predicted = torch.multinomial(logits[-1], 1)
-            #new_word = predicted[-1].unsqueeze(0)
-            if predicted.item() == tokenizer.pad_token_id:
-                break
-            else:
-                enc = torch.cat((enc, predicted), 0)
-                response.append(predicted.item())
-
-    decoded = tokenizer.decode(response, skip_special_tokens=True)
-    print("Response:", decoded)
-
+        print(response)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("train_file")
-    parser.add_argument("test_file")
+    # parser.add_argument("train_file")
+    # parser.add_argument("test_file")
     parser.add_argument("-l", "--load", action="store_true",
                         help="load model.pt")
     parser.add_argument("-s", "--save", action="store_true",
@@ -171,43 +148,40 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--interactive", action="store_true",
                         help="run in interactive mode")
     args = parser.parse_args()
+    train_file = './data/train_both_revised_no_cands.txt'
+    test_file = './data/valid_both_revised_no_cands.txt'
 
-    experiment = Experiment(log_code=False,
-         api_key='6f91f3AzPkFoIDvp9njF2QwET',
-         workspace='rkty1obt',
-         project_name='chatbot',
-         display_summary=False)
+    experiment = Experiment(log_code=False)
     experiment.log_parameters(hyper_params)
 
     # Load the GPT2 Tokenizer, add any special token if needed
+    tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
+    tokenizer.add_special_tokens({'pad_token': '<p>', 'sep_token': '<s>'})
 
-    tokenizer = GPT2Tokenizer.from_pretrained('gpt2', bos_token='<b>', sep_token='<s>', pad_token='<p>')
+    # Load the GPT2 model
+    model = GPT2LMHeadModel.from_pretrained('gpt2').to(device)
+    model.resize_token_embeddings(len(tokenizer))
 
     # Intialized the pretrained GPT-2 model and optimizer
-
-    model = GPT2LMHeadModel.from_pretrained('gpt2').cuda()
-    optimizer = torch.optim.Adam(model.parameters(), lr=hyper_params['learning_rate'])
+    optimizer = torch.optim.Adam(model.parameters(), lr=hyper_params['learning_rate']) 
     loss_fn = nn.CrossEntropyLoss(ignore_index=tokenizer.pad_token_id)
 
-    # Load the train, test DataLoader NOTE: Parse the data using GPT2 tokenizer
-
-    train_loader = load_dataset(args.train_file, tokenizer, hyper_params['batch_size'], hyper_params['window_size'])
-    test_loader = load_dataset(args.test_file, tokenizer, hyper_params['batch_size'], hyper_params['window_size'])
-
+    if args.load:
+        model.load_state_dict(torch.load('model.pt'))
     if args.train:
         # run train loop here
         print("running training loop...")
-        train(model, train_loader, optimizer, loss_fn, experiment)
+        train_loader = DataLoader(ParsingDataset(train_file, tokenizer, hyper_params['window_size']), \
+                                            batch_size=hyper_params['batch_size'], shuffle=False)
+        train(model, train_loader, optimizer, experiment, loss_fn)
     if args.save:
-        print("saving model...")
-        torch.save(model.state_dict(), './model.pt')
-    if args.load:
-        print("loading saved model...")
-        model.load_state_dict(torch.load('./model.pt'))
+        torch.save(model.state_dict(), 'model.pt')
     if args.test:
         # run test loop here
         print("running testing loop...")
-        test(model, test_loader, experiment)
+        test_loader = DataLoader(ParsingDataset(test_file, tokenizer, hyper_params['window_size']), \
+                                            batch_size=hyper_params['batch_size'], shuffle=False)
+        test(model, test_loader, experiment, loss_fn)
     if args.interactive:
         # generate your own chat with the model here
         print("running interative mode...")

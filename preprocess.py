@@ -1,73 +1,64 @@
 from transformers import *
 from torch.utils.data import Dataset, DataLoader
 import torch
+from torch.nn.utils.rnn import pad_sequence
 
-class GPT2Dataset(Dataset):
-    def __init__(self, input_file, tokenizer, window_size):
-        self.lines = []
-        self.inputs = []
-        self.labels = []
-        self.window_size = window_size
-        self.tokenizer = tokenizer
+class ParsingDataset(Dataset):
+    def __init__(self, input_file, tokenizer, max_seq_len):
+        """
+        :return: (torch.utils.data.DataLoader, torch.utils.data.DataLoader) for 
+        train and test
+        :Comment: This preprocess step is different from the previous ones. 
+        In this assignment, we are interested in using a pre-trained model.
+        So, we have to use the exact vocabulary the pre-trained model was trained 
+        with. We are using the GPT-2 model, so pass your data through
+        the GPT-2 tokenizer to get the word ids. You don't need to create your 
+        own dictionary.
+        """
+        self.dataset_length = 0
+        self.X = []
+        self.Y = []
         self.masks = []
 
-        if input_file: 
-            with open(input_file, 'r') as f: 
-                raw = f.read().strip().split('\n')
-                for line in raw: 
-                    if line.find('persona') != -1:
-                        pass
-                    else:
-                        line = line.strip().split('\t')
-                        prompt = line[0][2:]
-                        response = line[1]
-                        new_line = prompt + ' <s> ' + response
-                        self.lines.append(new_line)
+        # TODO: read the input file line by line and put the lines in a list.
+        file = open(input_file)
+        lines = file.readlines()
 
-                        enc_dict = tokenizer.encode_plus(tokenizer.bos_token + new_line, \
-                            max_length=window_size, pad_to_max_length=True, add_special_tokens=True, return_attention_mask=True)
-                        x = enc_dict['input_ids']
-                        mask = enc_dict['attention_mask']
-                        y = tokenizer.encode(new_line + tokenizer.eos_token, \
-                            max_length=window_size, pad_to_max_length=True, add_special_tokens=True)
+        for line in lines:
+            if line == '': continue
+            split_line = line.strip().split('\t')
+            if len(split_line) == 1: continue # no tab, not a prompt/response line
 
-                        self.inputs.append(torch.tensor(x))
-                        self.labels.append(torch.tensor(y))
-                        self.masks.append(torch.tensor(mask))
-
+            self.dataset_length += 1
+            start_i = split_line[0].find(' ')
+            line = tokenizer.bos_token + split_line[0][start_i:] + ' ' + tokenizer.sep_token + ' ' + split_line[1]
+            enc_dict = tokenizer.encode_plus(line, pad_to_max_length=True, add_special_tokens=True, max_length=max_seq_len, return_attention_mask=True)
+            self.X.append(torch.tensor(enc_dict['input_ids']))
+            self.masks.append(torch.tensor(enc_dict['attention_mask']))
+            # dec_dict = tokenizer.encode_plus(line + ' ' + tokenizer.eos_token, pad_to_max_length=True, add_special_tokens=True, max_length=max_seq_len, return_attention_mask=False)
+            self.Y.append(torch.tensor(enc_dict['input_ids'][1:] + [tokenizer.eos_token_id]))
+            
 
     def __len__(self):
-        #return len(self.lines) // self.window_size
-        return len(self.lines)
+        """
+        len should return a the length of the dataset
+
+        :return: an integer length of the dataset
+        """
+        # TODO: Override method to return length of dataset
+        return self.dataset_length
 
     def __getitem__(self, idx):
+        """
+        getitem should return a tuple or dictionary of the data at some index
 
-        # sentence = self.lines[idx*self.window_size : (idx+1)*self.window_size]
-        # x = self.tokenizer.encode(sentence, max_length=self.window_size, add_special_tokens=True)
-        # y = self.tokenizer.encode(sentence, max_length=self.window_size, add_special_tokens=True)
+        :param idx: the index for retrieval
 
-        # item = {"input": torch.tensor(x), "label": torch.tensor(y)}
-
-        item = {
-        "input": self.inputs[idx],
-        "label": self.labels[idx], 
-        "mask": self.masks[idx]
-        }
-
-        return item 
-
-
-def load_dataset(fn, tokenizer, batch_size, window_size):
-    """
-    :param fn: filename for the dataset
-    :return: (torch.utils.data.DataLoader, torch.utils.data.DataLoader) for train and test
-    :Comment: This function should be similary as the last GPT-2 assignemnent. We are still using the GPT-2 tokenizer to get the word ids.
-    One thing to note is that when preprocessing the dataset, please exclude all the sentences defining the speaker's persona, in this assignment,
-    we will just be training and testing on the chat text data. Also for each record of chat in the format of "sentence \t response", add BOS and EOS token
-    to the start and end it, also add a special token between sentence and response to differentiate them from each other
-    """
-
-    data_set = GPT2Dataset(fn, tokenizer, window_size)
-    data_loader = DataLoader(data_set, batch_size=batch_size, shuffle=False)
-
-    return data_loader
+        :return: tuple or dictionary of the data
+        """
+        # TODO: Override method to return the items in dataset
+        return {
+            'x': self.X[idx],
+            'y': self.Y[idx],
+            'mask': self.masks[idx]
+        } 
