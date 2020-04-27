@@ -4,6 +4,7 @@ import {bindActionCreators} from "redux";
 import { actionCreators as messageActions } from '../store/MessageStore';
 import {connect} from "react-redux";
 import PageLoader from "./PageLoader";
+import axios from 'axios';
 
 class HomePage extends React.Component {
   constructor(props) {
@@ -14,6 +15,7 @@ class HomePage extends React.Component {
   state = {
     isLoading: true,
     currText: '',
+    messages: this.props.messages
   }
 
   componentDidMount() {
@@ -29,10 +31,17 @@ class HomePage extends React.Component {
 
 handleChange = (e, { name, value }) => this.setState({ [name]: value });
 
-addUserText = () => {
+addUserText = async () => {
     this.props.addMessage({ type: 'user', text: this.state.currText });
-    this.props.addMessage({ type: 'bot', text: "Sorry, I'm still learning so not sure how to response yet." });
+    let msg = this.state.currText;
     this.setState({ currText: '' });
+    let ret = await axios.get("http://localhost:5000/send?text=" + msg).catch(e => console.error(e));
+    if (ret && ret.data) {
+        this.props.addMessage({ type: 'bot', text: ret.data });
+    } else {
+        this.props.addMessage({ type: 'bot', text: 'My brain isn\'t working right now. Sorry!' });
+    }
+    this.setState({ messages: this.props.messages})
 }
 
 // Component Functions
@@ -48,7 +57,7 @@ botText = (text) => {
 userText = (text) => {
     return (
     <div style={{ direction: 'rtl' }}>
-        <Message style={{ direction: 'ltr', textAlign: 'left', maxWidth: '75%' }}>
+        <Message style={{ direction: 'ltr', textAlign: 'left', maxWidth: '75%', marginBottom: '10px' }}>
             <p>{text}</p>
         </Message> 
     </div>

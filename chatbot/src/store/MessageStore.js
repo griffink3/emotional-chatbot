@@ -15,6 +15,7 @@ export const reducer = (state, action) => {
   if (action.type === addMessage) {
     let messages = state.messages;
     messages.push(action.message)
+    console.log(action.message)
     return { ...state, message: messages };
   }
 
