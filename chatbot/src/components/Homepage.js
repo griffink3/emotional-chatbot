@@ -1,5 +1,5 @@
 import React from 'react'
-import { Button, Form, Grid, Header, Image, Message, Segment, Modal, Input } from 'semantic-ui-react'
+import { Button, Grid, Header, Dropdown, Message, Segment, Input } from 'semantic-ui-react'
 import {bindActionCreators} from "redux";
 import { actionCreators as messageActions } from '../store/MessageStore';
 import {connect} from "react-redux";
@@ -15,6 +15,7 @@ class HomePage extends React.Component {
   state = {
     isLoading: true,
     currText: '',
+    mode: 'Positive',
     messages: this.props.messages
   }
 
@@ -31,17 +32,26 @@ class HomePage extends React.Component {
 
 handleChange = (e, { name, value }) => this.setState({ [name]: value });
 
+handleSelect = (e, { name, value }) => {
+    this.setState({ mode: name });
+    this.toggleModel(name);
+}
+
 addUserText = async () => {
     this.props.addMessage({ type: 'user', text: this.state.currText });
     let msg = this.state.currText;
     this.setState({ currText: '' });
-    let ret = await axios.get("http://localhost:5000/send?text=" + msg).catch(e => console.error(e));
+    let ret = await axios.get(`http://localhost:5000/send?text=${msg}`).catch(e => console.error(e));
     if (ret && ret.data) {
         this.props.addMessage({ type: 'bot', text: ret.data });
     } else {
         this.props.addMessage({ type: 'bot', text: 'My brain isn\'t working right now. Sorry!' });
     }
     this.setState({ messages: this.props.messages})
+}
+
+toggleModel = async (mode) => {
+    await axios.get(`http://localhost:5000/toggle?mode=${mode}`).catch(e => console.error(e));
 }
 
 // Component Functions
@@ -74,27 +84,6 @@ getMessages = () => {
                 return this.userText(message.text)
             } 
         })}
-        {/* {this.botText('Hi! My name is Cooper.')}
-        {this.userText('Hi Cooper. How are you?')}
-        <Message style={{ textAlign: 'left', maxWidth: '75%' }}>
-            <p>Good. How about you?</p>
-        </Message>   
-        <div style={{ direction: 'rtl' }}>
-        <Message style={{ direction: 'ltr', textAlign: 'left', maxWidth: '75%' }}>
-            <p>I'm great. So what do you like to do?</p>
-        </Message> 
-        </div>  
-        <Message style={{ textAlign: 'left', maxWidth: '75%' }}>
-            <p>Mostly smoke weed.</p>
-        </Message>    
-        <div style={{ direction: 'rtl' }}>
-        <Message style={{ direction: 'ltr', textAlign: 'left', maxWidth: '75%' }}>
-            <p>That's awesome! We should smoke together some time.</p>
-        </Message> 
-        </div>  
-        <Message style={{ textAlign: 'left', maxWidth: '75%' }}>
-            <p>I would like that very much.</p>
-        </Message>      */}
     </Segment>
     )
 }
@@ -124,10 +113,17 @@ render() {
                         onClick: this.addUserText
                       }}
                     placeholder='Say something...' />
+                <Dropdown text={this.state.mode}>
+                    <Dropdown.Menu>
+                    <Dropdown.Item text='Positive' name='Positive' onClick={this.handleSelect}/>
+                    <Dropdown.Item text='Neutral' name='Neutral' onClick={this.handleSelect}/>
+                    <Dropdown.Item text='Negative' name='Negative' onClick={this.handleSelect}/>
+                    </Dropdown.Menu>
+                </Dropdown>
                 <Button 
                     size='large' 
                     onClick={this.props.resetMessages} 
-                    style={{ marginTop: '10%' }}
+                    style={{ marginLeft: '10%', marginTop: '10%' }}
                 >
                         Reset Messages
                 </Button>
