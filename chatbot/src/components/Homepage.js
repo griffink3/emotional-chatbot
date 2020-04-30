@@ -32,16 +32,13 @@ class HomePage extends React.Component {
 
 handleChange = (e, { name, value }) => this.setState({ [name]: value });
 
-handleSelect = (e, { name, value }) => {
-    this.setState({ mode: name });
-    this.toggleModel(name);
-}
+handleSelect = (e, { name, value }) => this.setState({ mode: name });
 
 addUserText = async () => {
     this.props.addMessage({ type: 'user', text: this.state.currText });
     let msg = this.state.currText;
     this.setState({ currText: '' });
-    let ret = await axios.get(`http://localhost:5000/send?text=${msg}`).catch(e => console.error(e));
+    let ret = await axios.get(`http://localhost:5000/send?text=${msg}&mode=${this.state.mode}`).catch(e => console.error(e));
     if (ret && ret.data) {
         this.props.addMessage({ type: 'bot', text: ret.data });
     } else {
@@ -50,9 +47,9 @@ addUserText = async () => {
     this.setState({ messages: this.props.messages})
 }
 
-toggleModel = async (mode) => {
-    await axios.get(`http://localhost:5000/toggle?mode=${mode}`).catch(e => console.error(e));
-}
+// toggleModel = async (mode) => {
+//     await axios.get(`http://localhost:5000/toggle?mode=${mode}`).catch(e => console.error(e));
+// }
 
 // Component Functions
 
